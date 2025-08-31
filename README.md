@@ -47,12 +47,37 @@ s3://aws-project-4-raw-data/raw/ecommerce/
 - Outputs a **single CSV file per batch** into:
 s3://aws-project-4-processed-data/cleaned-csv/ecommerce/final_batch_<uuid>/ecommerce_clean_<timestamp>.csv
 
+## 4. Data Loading (Snowflake)
 
-### 4. Data Loading (Snowflake)
-- External stage (`ECOMMERCE_STAGE`) created in Snowflake, pointing to the processed bucket.
-- Target table `ECOMMERCE_RAW` schema:
-```sql
-CREATE OR REPLACE TABLE ECOMMERCE_RAW (
+- External stage **`ECOMMERCE_STAGE`** points to the processed S3 prefix.
+- Cleaned CSVs are loaded into the **`ECOMMERCE_RAW`** table.
+- Validation queries confirm row counts and schema alignment.
+
+
+
+## 🚀 Deployment Instructions
+
+### 1. Provision Infrastructure
+
+cd infra/aws
+terraform init
+terraform apply
+
+### 2. Generate Raw Data
+cd generator
+python ecommerce_stream_s3.py
+
+### 3. Run ETL Job
+- The Glue job (defined in Terraform) runs transform_raw_to_cleaned.py.
+- Output: single CSV per batch under
+- s3://aws-project-4-processed-data/cleaned-csv/ecommerce/final_batch_<uuid>/.
+
+### 4. Load Data into Snowflake
+- Open Snowflake Worksheet and run the SQL in the SQL Setup section.
+
+### 📊 SQL Setup (run in Snowflake) 
+### Create Target Table
+- CREATE OR REPLACE TABLE ECOMMERCE_RAW (
   ORDER_ID       VARCHAR,
   CUSTOMER_ID    VARCHAR,
   ORDER_DATE     DATE,
@@ -61,36 +86,7 @@ CREATE OR REPLACE TABLE ECOMMERCE_RAW (
   ORDER_AMOUNT   NUMBER(12,2),
   PAYMENT_STATUS VARCHAR
 );
-Data loaded with:
-
-sql
-Copy code
-COPY INTO ECOMMERCE_RAW
-FROM @ECOMMERCE_STAGE
-PATTERN = '.*final_batch_.*/ecommerce_clean_.*\\.csv'
-FILE_FORMAT = (TYPE=CSV SKIP_HEADER=1 FIELD_OPTIONALLY_ENCLOSED_BY='"')
-ON_ERROR = CONTINUE;
-
-🚀 Deployment Instructions
-1. Provision Infrastructure
-cd infra/aws
-terraform init
-terraform apply
-
-2. Generate Raw Data
-cd generator
-python ecommerce_stream_s3.py
-
-3. Run ETL Job
-
-Glue Job (defined in Terraform) triggers transform_raw_to_cleaned.py.
-
-Outputs cleaned CSV → S3 processed bucket.
-
-4. Load Data into Snowflake
-
-Run in Snowflake:
-
+### Copy Cleaned CSVs From Stage
 USE DATABASE SNOWFLAKE_LEARNING_DB;
 USE SCHEMA PUBLIC;
 
@@ -99,3 +95,8 @@ FROM @ECOMMERCE_STAGE
 PATTERN='.*final_batch_.*/ecommerce_clean_.*\\.csv'
 FILE_FORMAT=(TYPE=CSV SKIP_HEADER=1 FIELD_OPTIONALLY_ENCLOSED_BY='"')
 ON_ERROR=CONTINUE;
+
+### Quick Verification
+SELECT COUNT(*) FROM ECOMMERCE_RAW;
+SELECT * FROM ECOMMERCE_RAW ORDER BY ORDER_DATE DESC, ORDER_ID DESC LIMIT 20;
+
