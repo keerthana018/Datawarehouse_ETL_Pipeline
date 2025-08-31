@@ -77,7 +77,7 @@ python ecommerce_stream_s3.py
 
 ### 📊 SQL Setup (run in Snowflake) 
 ### Create Target Table
-- CREATE OR REPLACE TABLE ECOMMERCE_RAW (
+CREATE OR REPLACE TABLE ECOMMERCE_RAW (
   ORDER_ID       VARCHAR,
   CUSTOMER_ID    VARCHAR,
   ORDER_DATE     DATE,
